@@ -111,7 +111,7 @@ fyfth allows for single-character prefixes to speed scripting. For example, `*fo
 ### Core Language Prefixes
  * `*` loads the variable with the name following the prefix (`*word` expands to `word load`)
     - `*pi` -> `3.141` if we have previously stored the value.
- * `$` runs a macro stored in memory (`$word` expands to `word load query`)
+ * `$` runs a macro stored in memory (`$word` expands to `word load queue`)
     - `100 enum 1 add $fizzbuzz` runs the `fizzbuzz` macro from the standard prelude on `[1 2 3... 100]`
  * `@` fuzzily searches for an entity of that name and selects the first match
     - if there's an entity "My Camera", then `@mycam` will load it (if `mycam` does not match any other entity's name)
