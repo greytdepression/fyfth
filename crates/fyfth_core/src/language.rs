@@ -49,8 +49,48 @@ pub(crate) struct SimpleFunc {
 // Standard Language Extension
 //--------------------------------------------------
 impl FyfthLanguageExtension {
+    pub fn new_empty() -> Self {
+        Self {
+            keywords: default(),
+            functions: default(),
+            prefixes: default(),
+        }
+    }
+
     pub fn get_command_id(&self, keyword: &str) -> Option<u32> {
         self.keywords.get(keyword).copied()
+    }
+
+    pub fn merge(&mut self, other: Self) -> Result<(), ()> {
+        // Make sure the other language extension does not conflict with this one
+        if other.keywords.keys().any(|k| self.keywords.contains_key(k)) {
+            // Colliding keywords!
+            return Err(());
+        }
+        if other
+            .prefixes
+            .iter()
+            .any(|op| self.prefixes.iter().any(|sp| op.ch == sp.ch))
+        {
+            // Colliding prefixes!
+            return Err(());
+        }
+
+        let FyfthLanguageExtension {
+            keywords,
+            functions,
+            prefixes,
+        } = other;
+
+        // We can safely merge the two languages
+        let keyword_index_offset = self.functions.len() as u32;
+        self.functions.extend_from_slice(&functions);
+        keywords.iter().for_each(|(kw, &id)| {
+            self.keywords.insert(kw.clone(), id + keyword_index_offset);
+        });
+        self.prefixes.extend_from_slice(&prefixes);
+
+        Ok(())
     }
 
     pub fn with_command(
@@ -93,7 +133,7 @@ impl FyfthLanguageExtension {
         self
     }
 
-    pub fn new() -> Self {
+    pub fn base_fyfth() -> Self {
         let mut lang = Self {
             keywords: default(),
             functions: default(),

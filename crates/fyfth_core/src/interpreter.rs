@@ -1,5 +1,5 @@
 use core::any::TypeId;
-use std::{collections::VecDeque, fmt::Write, sync::Arc};
+use std::{borrow::BorrowMut, collections::VecDeque, fmt::Write, sync::Arc};
 
 use bevy::{prelude::*, utils::HashMap};
 
@@ -23,7 +23,7 @@ impl FyfthInterpreter {
             stack: default(),
             queue: default(),
             vars: default(),
-            lang: Arc::new(FyfthLanguageExtension::new()),
+            lang: Arc::new(FyfthLanguageExtension::base_fyfth()),
         }
     }
 
@@ -32,7 +32,7 @@ impl FyfthInterpreter {
             stack: default(),
             queue: default(),
             vars: default(),
-            lang: Arc::new(FyfthLanguageExtension::new()),
+            lang: Arc::new(FyfthLanguageExtension::base_fyfth()),
         };
 
         let prelude = std::fs::read_to_string(path).unwrap();
@@ -58,6 +58,11 @@ impl FyfthInterpreter {
         }
 
         buffer
+    }
+
+    pub fn add_language_extension(&mut self, ext: FyfthLanguageExtension) {
+        let lang = Arc::make_mut(&mut self.lang);
+        lang.merge(ext).unwrap();
     }
 
     pub fn parse_code(&mut self, code: &str) {

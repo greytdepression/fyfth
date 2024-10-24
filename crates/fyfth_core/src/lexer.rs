@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn test_lexer_simple() {
         let input = r#"foo bar baz"#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &["foo", "bar", "baz"];
@@ -223,7 +223,7 @@ mod tests {
 bar
 baz
 "#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &["foo", "bar", "baz"];
@@ -237,7 +237,7 @@ baz
 bar                                       # and this is the second
 baz                                       # and third
 "#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &["foo", "bar", "baz"];
@@ -251,7 +251,7 @@ baz                                       # and third
 bar                                       # and this is the second
 "baz"                                     # and third
 "#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &["foo", "bar", "baz"];
@@ -265,7 +265,7 @@ bar                                       # and this is the second
 bar                                       # and this is the second
 "baz                                      # and third
 "#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &[
@@ -283,7 +283,7 @@ bar                                       # and this is the second
 bar                                                  # and this is the second
 "baz\\\\\\"                                          # and third
 "#;
-        let lang = FyfthLanguageExtension::new();
+        let lang = FyfthLanguageExtension::base_fyfth();
         let lexer = FyfthLexer::iter(input, Arc::new(lang));
         let commands: Vec<_> = lexer.map(|fw| fw.unwrap().word).collect();
         let expected = &["foo\nand or\nbar", "bar", "baz\\\\\\"];
@@ -301,7 +301,7 @@ bar                                                  # and this is the second
     #[test]
     fn test_lexer_prefix() {
         let input = r#"@foo bar ^"foo bar" baz"#;
-        let mut lang = FyfthLanguageExtension::new();
+        let mut lang = FyfthLanguageExtension::base_fyfth();
         lang.with_prefix('@', debug_prefix_parser_fn);
         lang.with_prefix('^', debug_prefix_parser_fn);
         let lexer: Vec<_> = FyfthLexer::iter(input, Arc::new(lang)).collect();

@@ -1,3 +1,5 @@
+mod language_extension;
+
 use bevy::{
     prelude::*,
     render::{
@@ -5,7 +7,11 @@ use bevy::{
         view::RenderLayers,
     },
 };
-use fyfth_core::FyfthIgnoreEntity;
+use fyfth_core::{
+    interpreter::FyfthInterpreter,
+    language::{FyfthBroadcastBehavior, FyfthLanguageExtension},
+    FyfthIgnoreEntity,
+};
 
 pub const FOCUS_RENDER_LAYER: RenderLayers = RenderLayers::layer(31);
 
@@ -32,6 +38,24 @@ impl Plugin for FyfthFocusCameraPlugin {
                     .after(TransformSystem::TransformPropagate),
             )
             .add_systems(Startup, setup);
+
+        let mut language_extension = FyfthLanguageExtension::new_empty();
+        language_extension
+            .with_command(
+                "focus",
+                language_extension::fyfth_func_focus,
+                &[FyfthBroadcastBehavior::MayIter],
+            )
+            .with_command(
+                "unfocus",
+                language_extension::fyfth_func_unfocus,
+                &[FyfthBroadcastBehavior::MayIter],
+            )
+            .with_command("focused", language_extension::fyfth_func_focused, &[]);
+
+        let mut interpreter = app.world_mut().get_resource_mut::<FyfthInterpreter>()
+            .expect("Make sure to register the `FyfthPlugin` before registering the `FyfthFocusMainCameraPlugin`.");
+        interpreter.add_language_extension(language_extension);
     }
 }
 
@@ -85,7 +109,6 @@ fn setup(world: &mut World) {
                 } else {
                     format!("Focus Avatar for Entity ({ent})")
                 };
-                println!("Spawning avatar '{}'", &avatar_name);
                 world.spawn((
                     Name::from(avatar_name),
                     FocusObjectAvatar(ent),
@@ -122,7 +145,7 @@ pub struct FyfthFocusCamera;
 pub struct FyfthFocusObject;
 
 #[derive(Component)]
-struct FocusObjectAvatar(Entity);
+pub(crate) struct FocusObjectAvatar(pub(crate) Entity);
 
 fn focus_camera_follow(
     other_camera_query: Query<
