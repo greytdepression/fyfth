@@ -127,7 +127,7 @@ As an example, consider the `add` command. It is defined on `num` types, so that
 meaning that it may apply the operation to the individual elements of an iterator for both arguments. Thus we can also use `[1 2] [3 4] add` to get `[3 6]`. Moreover, we can use the broadcasting idea of numpy to combine an iterator with a non iterator. In this case, we can also do `[1 2] 3 add` to get `[4 5]`, or `1 [2 3] add` to get `[3 4]`. Essentially, what fyfth does in these situations is that it broadcasts the scalar value into an iterator of the same length as the other. So `[1 2] 3 add` turns into `[1 2] [3 3] add` and `1 [2 3] add` into `[1 1] [2 3] add`.
 
 > [!NOTE]
-> This behavior currently has the unintended side-effect of making some commands return empty iterators when you might expect them to not return anything. For example, `some_entity focus` leaves an empty stack, where as `entities focus` leaves `[]` as `focus` goes over the iterator produced by `entities` and consumes its elements but not the iterator itself.
+> This behavior currently has the unintended side effect of making some commands return empty iterators when you might expect them to not return anything. For example, `some_entity focus` leaves an empty stack, where as `entities focus` leaves `[]` as `focus` goes over the iterator produced by `entities` and consumes its elements but not the iterator itself.
 
 ## License
 The fyfth programming language and all code within this repository is dual-licensed under either:
