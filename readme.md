@@ -49,11 +49,11 @@ See below for a full list of fyfth commands.
  * `load` consumes a literal (string) from the top of the stack and pushes the variable by that name onto the stack
     - `pi load` -> `3.141`
  * `print_vars` prints out all the current variables. This includes all saved macros.
- * `geq` consumes the top two elements of the stack and returns true if the left one is greater than or equal to the right
+ * `geq` consumes the top two elements off the top of the stack and returns true if the left one is greater than or equal to the right
     - `4 3 geq` -> `true`
- * `leq` consumes the top two elements of the stack and returns true if the left one is less than or equal to the right
+ * `leq` consumes the top two elements off the top of the stack and returns true if the left one is less than or equal to the right
     - `4 3 leq` -> `false`
- * `eq` consumes the top two elements of the stack and returns true if they are equal
+ * `eq` consumes the top two elements off the top of the stack and returns true if they are equal
     - `uwu owo eq` -> `false`
  * `eqq` non-broadcasting version of `eq`, see the Broadcasting section
     - `[1 3] [1 4] eqq` -> `false` where as `[1 3] [1 4] eq` -> `[true false]`
