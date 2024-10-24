@@ -8,6 +8,7 @@ edition = "2021"
 default = ["egui_terminal", "focus"]
 egui_terminal = ["dep:bevy_egui", "dep:fyfth_terminal"]
 focus = ["dep:fyfth_focus"]
+regex = ["fyfth_core/regex"]
 
 # For the examples
 example_features = [

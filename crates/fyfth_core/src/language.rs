@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 use bevy::prelude::*;
 use bevy::utils::HashMap;
+#[cfg(feature = "regex")]
 use regex::Regex;
 
 use crate::{
@@ -340,14 +341,6 @@ impl FyfthLanguageExtension {
                     FyfthBroadcastBehavior::MayIter,
                 ],
             )
-            .with_command(
-                "regex",
-                fyfth_func_regex,
-                &[
-                    FyfthBroadcastBehavior::MayIter,
-                    FyfthBroadcastBehavior::MayIter,
-                ],
-            )
             .with_command("sin", fyfth_func_sin, &[FyfthBroadcastBehavior::MayIter])
             .with_command("cos", fyfth_func_cos, &[FyfthBroadcastBehavior::MayIter])
             .with_command("tan", fyfth_func_tan, &[FyfthBroadcastBehavior::MayIter])
@@ -360,6 +353,18 @@ impl FyfthLanguageExtension {
                     FyfthBroadcastBehavior::MayIter,
                 ],
             );
+
+        #[cfg(feature = "regex")]
+        {
+            lang.with_command(
+                "regex",
+                fyfth_func_regex,
+                &[
+                    FyfthBroadcastBehavior::MayIter,
+                    FyfthBroadcastBehavior::MayIter,
+                ],
+            );
+        }
 
         // prefixes
         lang.with_prefix('*', fyfth_prefix_load);
@@ -1240,6 +1245,7 @@ fn fyfth_func_fuzzy(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<F
 }
 
 /// `lhs: literal`, `rhs: literal`
+#[cfg(feature = "regex")]
 fn fyfth_func_regex(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<FyfthVariant>, ()> {
     let [lhs, rhs] = args else {
         panic!("received the wrong number of arguments")
