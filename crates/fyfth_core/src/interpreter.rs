@@ -18,7 +18,16 @@ pub struct FyfthInterpreter {
 }
 
 impl FyfthInterpreter {
-    pub(crate) fn new_with_prelude(path: &str, world: &mut World) -> Self {
+    pub fn new() -> Self {
+        Self {
+            stack: default(),
+            queue: default(),
+            vars: default(),
+            lang: Arc::new(FyfthLanguageExtension::new()),
+        }
+    }
+
+    pub fn new_with_prelude(path: &str, world: &mut World) -> Self {
         let mut output = Self {
             stack: default(),
             queue: default(),
@@ -29,19 +38,14 @@ impl FyfthInterpreter {
         let prelude = std::fs::read_to_string(path).unwrap();
         output.parse_code(&prelude);
 
-        let (_, res) = FyfthVariant::run(&mut output, world);
+        let (_, res) = output.run(world);
 
         res.unwrap();
 
         output
     }
 
-    pub(crate) fn pretty_print_stack(
-        &self,
-        world: &World,
-        delimiter: &str,
-        lang: &FyfthLanguageExtension,
-    ) -> String {
+    pub fn pretty_print_stack(&self, world: &World, delimiter: &str) -> String {
         let mut buffer = String::new();
 
         let mut first = true;
@@ -49,119 +53,22 @@ impl FyfthInterpreter {
             if !first {
                 write!(&mut buffer, "{delimiter}").unwrap();
             }
-            val.pretty_print(&mut buffer, world, lang);
+            val.pretty_print(&mut buffer, world, &self.lang);
             first = false;
         }
 
         buffer
     }
 
-    pub(crate) fn parse_code(&mut self, code: &str) {
+    pub fn parse_code(&mut self, code: &str) {
         let lexer = FyfthLexer::iter(code, self.lang.clone());
         for res in lexer {
             let word = res.unwrap();
             FyfthVariant::parse(self, word);
         }
     }
-}
 
-pub struct FyfthContext<'a> {
-    pub output: &'a mut String,
-    pub world: &'a mut World,
-    pub vars: &'a mut HashMap<String, FyfthVariant>,
-    pub lang: &'a FyfthLanguageExtension,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum FyfthVariant {
-    // Non-executable
-    Nil,
-    Bool(bool),
-    Num(f32),
-    Literal(String),
-    Iter(Vec<FyfthVariant>),
-
-    // bevy specific
-    Entity(Entity),
-    Vec2(Vec2),
-    Vec3(Vec3),
-    Quat(Quat),
-    Component(DynBevyComponent),
-
-    // Executable
-    FnIter,
-    Macro,
-    LineEnd,
-    FnQueue,
-    FnPush,
-    FnDup,
-    FnSwap,
-    FnSwapN,
-    FnRotRN,
-    FnRotLN,
-    LangFunc(u32),
-}
-
-impl FyfthVariant {
-    pub(crate) fn parse(interpreter: &mut FyfthInterpreter, word: FyfthWord) {
-        let FyfthInterpreter { queue, lang, .. } = interpreter;
-        let lang = Arc::clone(lang);
-
-        if let Some(prefix_index) = word.maybe_prefix {
-            // TODO: handle errors gracefully
-            let res = (lang.prefixes[prefix_index as usize].fn_ptr)(&word.word, &lang).unwrap();
-
-            queue.extend(res);
-            return;
-        }
-
-        if word.in_quotes {
-            queue.push_back(Self::Literal(word.word));
-            return;
-        }
-
-        let command = word.word;
-
-        // check if it's a number
-        if let Ok(val) = command.parse() {
-            queue.push_back(Self::Num(val));
-            return;
-        }
-
-        match command.as_str() {
-            "nil" => queue.push_back(Self::Nil),
-            "iter" => queue.push_back(Self::FnIter),
-            "true" => queue.push_back(Self::Bool(true)),
-            "false" => queue.push_back(Self::Bool(false)),
-            "macro" => queue.push_back(Self::Macro),
-            "queue" => queue.push_back(Self::FnQueue),
-            "dup" => queue.push_back(Self::FnDup),
-            "swap" => queue.push_back(Self::FnSwap),
-            ";" => queue.push_back(Self::LineEnd),
-            "swap_n" => queue.push_back(Self::FnSwapN),
-            "rotr" => queue.push_back(Self::FnRotRN),
-            "rotl" => queue.push_back(Self::FnRotLN),
-            "push" => queue.push_back(Self::FnPush),
-
-            _ if lang.keywords.contains_key(&command) => {
-                let index = *lang.keywords.get(&command).unwrap();
-                queue.push_back(Self::LangFunc(index));
-            }
-            _ => queue.push_back(Self::Literal(command)),
-        }
-    }
-
-    pub(crate) fn as_num(&self) -> f32 {
-        match self {
-            FyfthVariant::Num(val) => *val,
-            _ => unreachable!(),
-        }
-    }
-
-    pub(crate) fn run(
-        interpreter: &mut FyfthInterpreter,
-        world: &mut World,
-    ) -> (String, Result<(), ()>) {
+    pub fn run(&mut self, world: &mut World) -> (String, Result<(), ()>) {
         let mut output = String::new();
 
         let FyfthInterpreter {
@@ -169,15 +76,11 @@ impl FyfthVariant {
             queue,
             vars,
             lang,
-        } = interpreter;
-
-        let lang = Arc::clone(lang);
+        } = self;
 
         let mut result = Ok(());
 
         let mut iterations = 0;
-
-        let vars = &mut interpreter.vars;
 
         let mut print_out = String::new();
 
@@ -240,11 +143,11 @@ impl FyfthVariant {
                     let mut iter_vec = vec![];
                     std::mem::swap(&mut iter_vec, stack);
 
-                    stack.push(Self::Iter(iter_vec));
+                    stack.push(FyfthVariant::Iter(iter_vec));
                     Ok(())
                 }
                 FyfthVariant::Macro => {
-                    if let Some(Self::Literal(name)) = queue.pop_front() {
+                    if let Some(FyfthVariant::Literal(name)) = queue.pop_front() {
                         let mut counter = 1;
                         let mut end = 0;
                         for val in queue.iter() {
@@ -262,7 +165,7 @@ impl FyfthVariant {
                             end += 1;
                         }
 
-                        vars.insert(name, Self::Iter(queue.drain(0..end).collect()));
+                        vars.insert(name, FyfthVariant::Iter(queue.drain(0..end).collect()));
                         Ok(())
                     } else {
                         write!(
@@ -274,7 +177,7 @@ impl FyfthVariant {
                     }
                 }
                 FyfthVariant::FnQueue => {
-                    if let Some(Self::Iter(vals)) = stack.pop() {
+                    if let Some(FyfthVariant::Iter(vals)) = stack.pop() {
                         for val in vals.iter().rev() {
                             queue.push_front(val.clone());
                         }
@@ -289,7 +192,7 @@ impl FyfthVariant {
                     }
                 }
                 FyfthVariant::FnPush => {
-                    if let Some(Self::Iter(vals)) = stack.pop() {
+                    if let Some(FyfthVariant::Iter(vals)) = stack.pop() {
                         stack.extend_from_slice(&vals);
                         Ok(())
                     } else {
@@ -328,7 +231,7 @@ impl FyfthVariant {
                     }
                 }
                 FyfthVariant::FnSwapN => {
-                    if let Some(Self::Num(index)) = stack.pop() {
+                    if let Some(FyfthVariant::Num(index)) = stack.pop() {
                         let index = index as i32;
                         if index < 0 || index as usize + 1 >= stack.len() {
                             output
@@ -350,7 +253,7 @@ impl FyfthVariant {
                     }
                 }
                 FyfthVariant::FnRotRN => {
-                    if let Some(Self::Num(index)) = stack.pop() {
+                    if let Some(FyfthVariant::Num(index)) = stack.pop() {
                         let size = index as i32;
                         if size < 0 || size as usize > stack.len() {
                             output.push_str("Error: not enough items on the stack to apply `rotr`");
@@ -370,7 +273,7 @@ impl FyfthVariant {
                     }
                 }
                 FyfthVariant::FnRotLN => {
-                    if let Some(Self::Num(index)) = stack.pop() {
+                    if let Some(FyfthVariant::Num(index)) = stack.pop() {
                         let size = index as i32;
                         if size < 0 || size as usize > stack.len() {
                             output.push_str("Error: not enough items on the stack to apply `rotl`");
@@ -389,7 +292,7 @@ impl FyfthVariant {
                         Err(())
                     }
                 }
-                FyfthVariant::LangFunc(index) => Self::try_call_func(
+                FyfthVariant::LangFunc(index) => FyfthVariant::try_call_func(
                     FyfthContext {
                         output: &mut output,
                         world,
@@ -407,6 +310,100 @@ impl FyfthVariant {
         // println!("{}", print_out);
 
         (output, result)
+    }
+}
+
+pub struct FyfthContext<'a> {
+    pub output: &'a mut String,
+    pub world: &'a mut World,
+    pub vars: &'a mut HashMap<String, FyfthVariant>,
+    pub lang: &'a FyfthLanguageExtension,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FyfthVariant {
+    // Non-executable
+    Nil,
+    Bool(bool),
+    Num(f32),
+    Literal(String),
+    Iter(Vec<FyfthVariant>),
+
+    // bevy specific
+    Entity(Entity),
+    Vec2(Vec2),
+    Vec3(Vec3),
+    Quat(Quat),
+    Component(DynBevyComponent),
+
+    // Executable
+    FnIter,
+    Macro,
+    LineEnd,
+    FnQueue,
+    FnPush,
+    FnDup,
+    FnSwap,
+    FnSwapN,
+    FnRotRN,
+    FnRotLN,
+    LangFunc(u32),
+}
+
+impl FyfthVariant {
+    pub(crate) fn parse(interpreter: &mut FyfthInterpreter, word: FyfthWord) {
+        let FyfthInterpreter { queue, lang, .. } = interpreter;
+        let lang = Arc::clone(lang);
+
+        if let Some(prefix_index) = word.maybe_prefix {
+            // TODO: handle errors gracefully
+            let res = (lang.prefixes[prefix_index as usize].fn_ptr)(&word.word, &lang).unwrap();
+
+            queue.extend(res);
+            return;
+        }
+
+        if word.in_quotes {
+            queue.push_back(FyfthVariant::Literal(word.word));
+            return;
+        }
+
+        let command = word.word;
+
+        // check if it's a number
+        if let Ok(val) = command.parse() {
+            queue.push_back(FyfthVariant::Num(val));
+            return;
+        }
+
+        match command.as_str() {
+            "nil" => queue.push_back(FyfthVariant::Nil),
+            "iter" => queue.push_back(FyfthVariant::FnIter),
+            "true" => queue.push_back(FyfthVariant::Bool(true)),
+            "false" => queue.push_back(FyfthVariant::Bool(false)),
+            "macro" => queue.push_back(FyfthVariant::Macro),
+            "queue" => queue.push_back(FyfthVariant::FnQueue),
+            "dup" => queue.push_back(FyfthVariant::FnDup),
+            "swap" => queue.push_back(FyfthVariant::FnSwap),
+            ";" => queue.push_back(FyfthVariant::LineEnd),
+            "swap_n" => queue.push_back(FyfthVariant::FnSwapN),
+            "rotr" => queue.push_back(FyfthVariant::FnRotRN),
+            "rotl" => queue.push_back(FyfthVariant::FnRotLN),
+            "push" => queue.push_back(FyfthVariant::FnPush),
+
+            _ if lang.keywords.contains_key(&command) => {
+                let index = *lang.keywords.get(&command).unwrap();
+                queue.push_back(FyfthVariant::LangFunc(index));
+            }
+            _ => queue.push_back(FyfthVariant::Literal(command)),
+        }
+    }
+
+    pub(crate) fn as_num(&self) -> f32 {
+        match self {
+            FyfthVariant::Num(val) => *val,
+            _ => unreachable!(),
+        }
     }
 
     pub(crate) fn try_call_func(
@@ -435,7 +432,7 @@ impl FyfthVariant {
             .iter()
             .enumerate()
             .any(|(index, &beh)| match (beh, &args[index]) {
-                (FyfthBroadcastBehavior::MayIter, Self::Iter(_)) => true,
+                (FyfthBroadcastBehavior::MayIter, FyfthVariant::Iter(_)) => true,
                 (FyfthBroadcastBehavior::MayIter, _) => false,
                 (FyfthBroadcastBehavior::IgnoreIter, _) => false,
             });
@@ -450,7 +447,7 @@ impl FyfthVariant {
                 .iter()
                 .zip(args.iter())
                 .filter_map(|(beh, arg)| match (beh, arg) {
-                    (FyfthBroadcastBehavior::MayIter, Self::Iter(v)) => Some(v.len()),
+                    (FyfthBroadcastBehavior::MayIter, FyfthVariant::Iter(v)) => Some(v.len()),
                     _ => None,
                 })
                 .min()
@@ -461,7 +458,7 @@ impl FyfthVariant {
                 .iter()
                 .zip(args.iter())
                 .filter_map(|(beh, arg)| match (beh, arg) {
-                    (FyfthBroadcastBehavior::MayIter, Self::Iter(v)) => Some(v.len()),
+                    (FyfthBroadcastBehavior::MayIter, FyfthVariant::Iter(v)) => Some(v.len()),
                     _ => None,
                 })
                 .max()
@@ -496,7 +493,7 @@ impl FyfthVariant {
                     let beh = &func.simple_function.broadcast_behaviors[j];
 
                     temp_args.push(match (beh, arg) {
-                        (FyfthBroadcastBehavior::MayIter, Self::Iter(v)) => v[i].clone(),
+                        (FyfthBroadcastBehavior::MayIter, FyfthVariant::Iter(v)) => v[i].clone(),
                         _ => arg.clone(),
                     });
                 }
@@ -516,7 +513,7 @@ impl FyfthVariant {
                 }
             }
 
-            Some(Self::Iter(output_vec))
+            Some(FyfthVariant::Iter(output_vec))
         };
 
         if let Some(result_value) = maybe_output {
@@ -618,88 +615,102 @@ impl FyfthVariant {
     pub(crate) fn try_reflect_from_type_id(
         value: &dyn Reflect,
         registry: &BevyComponentRegistry,
-    ) -> Option<Self> {
+    ) -> Option<FyfthVariant> {
         match value.type_id() {
             id if id == TypeId::of::<bool>() => {
-                return Some(Self::Bool(value.downcast_ref::<bool>().unwrap().clone()));
+                return Some(FyfthVariant::Bool(
+                    value.downcast_ref::<bool>().unwrap().clone(),
+                ));
             }
             id if id == TypeId::of::<f32>() => {
-                return Some(Self::Num(value.downcast_ref::<f32>().unwrap().clone()));
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<f32>().unwrap().clone(),
+                ));
             }
             id if id == TypeId::of::<f64>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<f64>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<f64>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<i8>() => {
-                return Some(Self::Num(value.downcast_ref::<i8>().unwrap().clone() as f32));
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<i8>().unwrap().clone() as f32,
+                ));
             }
             id if id == TypeId::of::<i16>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<i16>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<i16>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<i32>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<i32>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<i32>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<i64>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<i64>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<i64>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<isize>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<isize>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<isize>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<u8>() => {
-                return Some(Self::Num(value.downcast_ref::<u8>().unwrap().clone() as f32));
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<u8>().unwrap().clone() as f32,
+                ));
             }
             id if id == TypeId::of::<u16>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<u16>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<u16>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<u32>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<u32>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<u32>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<u64>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<u64>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<u64>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<usize>() => {
-                return Some(Self::Num(
-                    value.downcast_ref::<usize>().unwrap().clone() as f32
+                return Some(FyfthVariant::Num(
+                    value.downcast_ref::<usize>().unwrap().clone() as f32,
                 ));
             }
             id if id == TypeId::of::<String>() => {
-                return Some(Self::Literal(
+                return Some(FyfthVariant::Literal(
                     value.downcast_ref::<String>().unwrap().clone(),
                 ));
             }
             id if id == TypeId::of::<&str>() => {
-                return Some(Self::Literal(
+                return Some(FyfthVariant::Literal(
                     value.downcast_ref::<&str>().unwrap().to_string(),
                 ));
             }
             id if id == TypeId::of::<Entity>() => {
-                return Some(Self::Entity(
+                return Some(FyfthVariant::Entity(
                     value.downcast_ref::<Entity>().unwrap().clone(),
                 ));
             }
             id if id == TypeId::of::<Vec2>() => {
-                return Some(Self::Vec2(value.downcast_ref::<Vec2>().unwrap().clone()));
+                return Some(FyfthVariant::Vec2(
+                    value.downcast_ref::<Vec2>().unwrap().clone(),
+                ));
             }
             id if id == TypeId::of::<Vec3>() => {
-                return Some(Self::Vec3(value.downcast_ref::<Vec3>().unwrap().clone()));
+                return Some(FyfthVariant::Vec3(
+                    value.downcast_ref::<Vec3>().unwrap().clone(),
+                ));
             }
             id if id == TypeId::of::<Quat>() => {
-                return Some(Self::Quat(value.downcast_ref::<Quat>().unwrap().clone()));
+                return Some(FyfthVariant::Quat(
+                    value.downcast_ref::<Quat>().unwrap().clone(),
+                ));
             }
             _ => {}
         }
@@ -712,7 +723,7 @@ impl FyfthVariant {
                     .unwrap()
                     .from_reflect;
 
-                return Some(Self::Component((from_reflect_func)(value).unwrap()));
+                return Some(FyfthVariant::Component((from_reflect_func)(value).unwrap()));
             }
         }
 

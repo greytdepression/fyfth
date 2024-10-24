@@ -4,7 +4,21 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bevy = { version = "0.14.2", features = ["wayland"] }
+bevy_egui = "0.29.0"
+bevy_panorbit_camera = { version = "0.19.3", features = ["bevy_egui"] }
+fyfth_core = { path = "crates/fyfth_core" }
+fyfth_focus = { path = "crates/fyfth_focus" }
+fyfth_terminal = { path = "crates/fyfth_terminal" }
 
 [workspace]
 resolver = "2"
 members = ["crates/*"]
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
