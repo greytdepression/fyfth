@@ -1,5 +1,5 @@
 use core::any::TypeId;
-use std::{borrow::BorrowMut, collections::VecDeque, fmt::Write, sync::Arc};
+use std::{collections::VecDeque, fmt::Write, sync::Arc};
 
 use bevy::{prelude::*, utils::HashMap};
 
@@ -87,36 +87,7 @@ impl FyfthInterpreter {
 
         let mut iterations = 0;
 
-        let mut print_out = String::new();
-
-        let debug_print_state = |print_out: &mut String,
-                                 i: i32,
-                                 stack: &[FyfthVariant],
-                                 queue: &VecDeque<FyfthVariant>,
-                                 vars: &HashMap<String, FyfthVariant>,
-                                 world: &World| {
-            // write!(print_out, "{i: >5}:\n").unwrap();
-            // print_out.push_str("  Stack: ");
-            // for val in stack.iter() {
-            //     val.pretty_print(print_out, world);
-            //     print_out.push(' ');
-            // }
-            // print_out.push_str("\n  Queue: ");
-            // for val in queue.iter() {
-            //     val.pretty_print(print_out, world);
-            //     print_out.push(' ');
-            // }
-            // print_out.push_str("\n  Variables:\n");
-            // for (name, val) in vars.iter() {
-            //     write!(print_out, "\"{name}\": ").unwrap();
-            //     val.pretty_print(print_out, world);
-            //     print_out.push('\n');
-            // }
-            // print_out.push_str("\n\n");
-        };
-
         while !queue.is_empty() && result.is_ok() {
-            debug_print_state(&mut print_out, iterations, stack, queue, vars, world);
             if iterations > 100_000 {
                 write!(&mut output, "Error: reached iteration limit").unwrap();
                 result = Err(());
@@ -311,9 +282,6 @@ impl FyfthInterpreter {
             };
         }
 
-        debug_print_state(&mut print_out, iterations, stack, queue, vars, world);
-        // println!("{}", print_out);
-
         (output, result)
     }
 }
@@ -401,13 +369,6 @@ impl FyfthVariant {
                 queue.push_back(FyfthVariant::LangFunc(index));
             }
             _ => queue.push_back(FyfthVariant::Literal(command)),
-        }
-    }
-
-    pub(crate) fn as_num(&self) -> f32 {
-        match self {
-            FyfthVariant::Num(val) => *val,
-            _ => unreachable!(),
         }
     }
 
@@ -818,8 +779,8 @@ impl FyfthVariant {
                     _ => Err(()),
                 }
             }
-            FyfthVariant::Component(dyn_shell_component) => todo!(),
-            FyfthVariant::Iter(vec) => Err(())?,
+            FyfthVariant::Component(_) => todo!(),
+            FyfthVariant::Iter(_) => Err(())?,
             FyfthVariant::Nil => panic!("Cannot set field to nil"),
             _ => panic!("Cannot set field to non-value type `FyfthVariant`"),
         }

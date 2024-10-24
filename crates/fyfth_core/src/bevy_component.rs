@@ -4,9 +4,7 @@ use std::sync::Arc;
 use bevy::{prelude::*, utils::HashMap};
 
 pub(crate) struct BevyComponentInfo {
-    pub(crate) ident: Option<String>,
     pub(crate) full_path: String,
-    pub(crate) short_path: String,
     pub(crate) type_id: TypeId,
 }
 
@@ -45,7 +43,6 @@ impl Clone for DynBevyComponent {
 }
 
 pub(crate) struct RegisteredBevyComponent {
-    pub(crate) default: Arc<dyn Fn() -> DynBevyComponent>,
     pub(crate) from_reflect: Arc<dyn Fn(&dyn Reflect) -> Result<DynBevyComponent, ()>>,
     pub(crate) extract: Arc<dyn Fn(Entity, &World) -> Option<DynBevyComponent>>,
     pub(crate) insert: Arc<dyn Fn(Entity, &mut World, DynBevyComponent)>,
@@ -68,7 +65,6 @@ impl FyfthRegisterBevyComponent for App {
         register.registered_components_map.insert(
             TypeId::of::<T>(),
             RegisteredBevyComponent {
-                default: Arc::new(|| DynBevyComponent(Box::new(T::default()))),
                 from_reflect: Arc::new(|refl| {
                     if refl.type_id() == TypeId::of::<T>() {
                         Ok(DynBevyComponent(Box::new(
@@ -94,9 +90,7 @@ impl FyfthRegisterBevyComponent for App {
         );
         let temp = T::default();
         register.registered_components.push(BevyComponentInfo {
-            ident: temp.reflect_type_ident().map(|s| s.to_string()),
             full_path: temp.reflect_type_path().to_string(),
-            short_path: temp.reflect_short_type_path().to_string(),
             type_id: TypeId::of::<T>(),
         });
 
