@@ -97,7 +97,7 @@ See below for a full list of fyfth commands.
 
 ### Requires Feature: `regex`
  * `regex` consumes two literals (strings) `haystack reg` off the top of the stack and returns a boolean to indicate if `haystack` matches the regular expression `reg`
-    - `"john.apple@apple.com" "\\w+\\.\\w+@\\w+\\.\\w{2,3}" regex` -> `true`
+    - `"tim.apple@apple.com" "\\w+\\.\\w+@\\w+\\.\\w{2,3}" regex` -> `true`
 
 ### Requires Feature: `focus`
  * `focus` consumes an entity off the top of the stack and highlights it in the scene
