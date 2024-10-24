@@ -399,6 +399,47 @@ fn fyfth_func_set(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
     };
 
     match (lhs, mhs, rhs) {
+        (&FyfthVariant::Vec2(vec), FyfthVariant::Literal(comp), &FyfthVariant::Num(val)) => {
+            match comp.as_str() {
+                "x" => Ok(Some(FyfthVariant::Vec2(Vec2::new(val, vec.y)))),
+                "y" => Ok(Some(FyfthVariant::Vec2(Vec2::new(vec.x, val)))),
+                _ => {
+                    write!(ctx.output, "Error: vec2 has no `{comp}` component",).unwrap();
+                    Err(())
+                }
+            }
+        }
+        (&FyfthVariant::Vec3(vec), FyfthVariant::Literal(comp), &FyfthVariant::Num(val)) => {
+            match comp.as_str() {
+                "x" => Ok(Some(FyfthVariant::Vec3(Vec3::new(val, vec.y, vec.z)))),
+                "y" => Ok(Some(FyfthVariant::Vec3(Vec3::new(vec.x, val, vec.z)))),
+                "z" => Ok(Some(FyfthVariant::Vec3(Vec3::new(vec.x, vec.y, val)))),
+                _ => {
+                    write!(ctx.output, "Error: vec3 has no `{comp}` component",).unwrap();
+                    Err(())
+                }
+            }
+        }
+        (&FyfthVariant::Quat(quat), FyfthVariant::Literal(comp), &FyfthVariant::Num(val)) => {
+            match comp.as_str() {
+                "x" => Ok(Some(FyfthVariant::Quat(
+                    Quat::from_xyzw(val, quat.y, quat.z, quat.w).normalize(),
+                ))),
+                "y" => Ok(Some(FyfthVariant::Quat(
+                    Quat::from_xyzw(quat.x, val, quat.z, quat.w).normalize(),
+                ))),
+                "z" => Ok(Some(FyfthVariant::Quat(
+                    Quat::from_xyzw(quat.x, quat.y, val, quat.w).normalize(),
+                ))),
+                "w" => Ok(Some(FyfthVariant::Quat(
+                    Quat::from_xyzw(quat.x, quat.y, quat.z, val).normalize(),
+                ))),
+                _ => {
+                    write!(ctx.output, "Error: quat has no `{comp}` component",).unwrap();
+                    Err(())
+                }
+            }
+        }
         (FyfthVariant::Iter(vec), &FyfthVariant::Num(index), val) => {
             let mut vec = vec.clone();
             let index = if index >= 0.0 {
