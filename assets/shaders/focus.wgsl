@@ -12,6 +12,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let offset = dot(in.world_position, vec4<f32>(10.0, 10.0, 10.0, 0.0));
 
     if sin(offset + globals.time * speed) < 0.0 {
+        // See https://github.com/bevyengine/bevy/pull/15782
+        // and https://github.com/gfx-rs/wgpu/issues/4416
         if true {
             discard;
         }
