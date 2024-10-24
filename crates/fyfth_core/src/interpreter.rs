@@ -209,7 +209,7 @@ impl FyfthInterpreter {
                 FyfthVariant::FnSwapN => {
                     if let Some(FyfthVariant::Num(index)) = stack.pop() {
                         let index = index as i32;
-                        if index < 0 || index as usize + 1 >= stack.len() {
+                        if index < 0 || index as usize >= stack.len() {
                             output
                                 .push_str("Error: not enough items on the stack to apply `swap_n`");
                             Err(())
