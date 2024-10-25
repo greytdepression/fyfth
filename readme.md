@@ -39,7 +39,7 @@ See below for a full list of fyfth commands.
  * `sub` subtracts a value from another
     - `1 2 sub` -> `-1`
  * `mul` multiplies two values
-    - `1 2 add` -> `2`
+    - `1 2 mul` -> `2`
  * `div` divides two values
     - `1 2 div` -> `0.5`
  * `print` prints the last value on the stack
