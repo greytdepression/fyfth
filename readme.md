@@ -34,21 +34,6 @@ See below for a full list of fyfth commands.
     - `vec2(3, 4) x get` -> `3`
  * `set` sets a named parameter of a struct to the given value
     - `vec2(3, 4) x 7 set` -> `vec2(7, 4)`
- * `add` adds two values
-    - `1 2 add` -> `3`
- * `sub` subtracts a value from another
-    - `1 2 sub` -> `-1`
- * `mul` multiplies two values
-    - `1 2 mul` -> `2`
- * `div` divides two values
-    - `1 2 div` -> `0.5`
- * `print` prints the last value on the stack
-    - `3 print` -> prints out `3`
- * `store` consumes a literal (string) from the top of the stack and then stores the next value under that name in that variable map
-    - `3.141 pi store` -> now there is a variable `pi` with the value `3.141`
- * `load` consumes a literal (string) from the top of the stack and pushes the variable by that name onto the stack
-    - `pi load` -> `3.141`
- * `print_vars` prints out all the current variables. This includes all saved macros.
  * `geq` consumes the top two elements off the top of the stack and returns true if the left one is greater than or equal to the right
     - `4 3 geq` -> `true`
  * `leq` consumes the top two elements off the top of the stack and returns true if the left one is less than or equal to the right
@@ -57,6 +42,30 @@ See below for a full list of fyfth commands.
     - `uwu owo eq` -> `false`
  * `eqq` non-broadcasting version of `eq`, see the Broadcasting section
     - `[1 3] [1 4] eqq` -> `false` where as `[1 3] [1 4] eq` -> `[true false]`
+ * `add` adds two values
+    - `1 2 add` -> `3`
+ * `sub` subtracts a value from another
+    - `1 2 sub` -> `-1`
+ * `mul` multiplies two values
+    - `1 2 mul` -> `2`
+ * `div` divides two values
+    - `1 2 div` -> `0.5`
+ * `mod` consumes `lhs rhs` off the top of the stack and pushes `lhs % rhs` back onto it. If `lhs` is not a number, it instead pushes `nil`.
+    - `7 3 mod` -> `1`
+ * `sin` computes the sine of a number
+    - `0 sin` -> `0`
+ * `cos` computes the cosine of a number
+ * `tan` computes the tangent of a number
+ * `atan` computes the arctan of a number
+ * `atan2` computes the arctan of a fraction
+    - `lhs rhs atan2` produces the same as `lhs.atan2(rhs)` in Rust
+ * `print` prints the last value on the stack
+    - `3 print` -> prints out `3`
+ * `store` consumes a literal (string) from the top of the stack and then stores the next value under that name in that variable map
+    - `3.141 pi store` -> now there is a variable `pi` with the value `3.141`
+ * `load` consumes a literal (string) from the top of the stack and pushes the variable by that name onto the stack
+    - `pi load` -> `3.141`
+ * `print_vars` prints out all the current variables. This includes all saved macros.
  * `not` inverts a boolean value
  * `entities` returns an iterator of all entities in the scene
  * `name` consumes an entity value off the top of the stack and returns its name or `nil` if it does not have a name component
@@ -77,8 +86,6 @@ See below for a full list of fyfth commands.
     - `a true filter` -> `a`, `b false filter` -> ` `. This is particularly useful with broadcasting: `[a b c] [true false true] filter` -> `[a c]`
  * `select` consumes `lhs rhs cond` off the top of the stack and
     - `true a b select` -> `a`, `false a b select` -> `b`. This is particularly useful with broadcasting: `[true false true] [a b c] [1 2 3] select` -> `[a 2 c]`
- * `mod` consumes `lhs rhs` off the top of the stack and pushes `lhs % rhs` back onto it. If `lhs` is not a number, it instead pushes `nil`.
-    - `7 3 mod` -> `1`
  * `vec2` constructs a `vec2` using the top two values on the stack
     - `1 2 vec2` -> `vec2(1, 2)`
  * `vec3` constructs a `vec3` using the top three values on the stack
@@ -87,13 +94,6 @@ See below for a full list of fyfth commands.
     - `0 0 0 1 quat` -> `quat(0, 0, 0, 1)`
  * `fuzzy` consumes two literals (strings) `haystack needle` off the top of the stack and returns a boolean to indicate if `haystack` fuzzily matches `needle`
     - `GlobalTransform glbtrans fuzzy` -> `true`
- * `sin` computes the sine of a number
-    - `0 sin` -> `0`
-* `cos` computes the cosine of a number
-* `tan` computes the tangent of a number
-* `atan` computes the arctan of a number
-* `atan2` computes the arctan of a fraction
-    - `lhs rhs atan2` produces the same as `lhs.atan2(rhs)` in Rust
 
 ### Requires Feature: `regex`
  * `regex` consumes two literals (strings) `haystack reg` off the top of the stack and returns a boolean to indicate if `haystack` matches the regular expression `reg`
