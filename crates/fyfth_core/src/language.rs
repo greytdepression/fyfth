@@ -6,7 +6,7 @@ use bevy::utils::HashMap;
 use regex::Regex;
 
 use crate::{
-    bevy_component::BevyComponentRegistry,
+    bevy_component::{BevyComponentRegistry, BevyComponentRegistryError},
     interpreter::{FyfthContext, FyfthVariant},
     util, FyfthIgnoreEntity,
 };
@@ -352,6 +352,11 @@ impl FyfthLanguageExtension {
                     FyfthBroadcastBehavior::MayIter,
                     FyfthBroadcastBehavior::MayIter,
                 ],
+            )
+            .with_command(
+                "component",
+                fyfth_func_component,
+                &[FyfthBroadcastBehavior::MayIter],
             );
 
         #[cfg(feature = "regex")]
@@ -1478,6 +1483,73 @@ fn fyfth_func_div(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
             lhs.pretty_print_type(ctx.output);
             ctx.output.push_str(" ");
             rhs.pretty_print_type(ctx.output);
+            ctx.output.push_str("`.");
+            Err(())
+        }
+    }
+}
+
+/// `lhs: num, rhs: num`
+fn fyfth_func_component(
+    ctx: FyfthContext,
+    args: &[FyfthVariant],
+) -> Result<Option<FyfthVariant>, ()> {
+    let [val] = args else {
+        panic!("received the wrong number of arguments")
+    };
+    match val {
+        FyfthVariant::Literal(component_name) => {
+            // We need to get the component registry
+            let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
+
+            match registry.try_find_component_by_name(&component_name) {
+                Ok(comp_type_id) => {
+                    let registered_component = registry
+                        .registered_components_map
+                        .get(&comp_type_id)
+                        .unwrap();
+                    let from_world = registered_component.from_world.clone();
+                    let comp = (&from_world)(ctx.world);
+                    Ok(Some(FyfthVariant::Component(comp)))
+                }
+                Err(error) => match error {
+                    BevyComponentRegistryError::NoMatchingComponent => {
+                        write!(
+                            ctx.output,
+                            "Error: no component type path matches '{component_name}'",
+                        )
+                        .unwrap();
+                        Err(())
+                    }
+                    BevyComponentRegistryError::MultipleMatchingComponents(vec) => {
+                        let num = vec.len();
+                        write!(
+                            ctx.output,
+                            "Error: {num} component type paths match '{component_name}':",
+                        )
+                        .unwrap();
+
+                        for index in vec {
+                            writeln!(
+                                ctx.output,
+                                "    {}",
+                                &registry.registered_components[index].full_path,
+                            )
+                            .unwrap();
+                        }
+
+                        Err(())
+                    }
+                },
+            }
+        }
+        _ => {
+            write!(
+                ctx.output,
+                "Syntax error: the operation `component` cannot work on type `"
+            )
+            .unwrap();
+            val.pretty_print_type(ctx.output);
             ctx.output.push_str("`.");
             Err(())
         }

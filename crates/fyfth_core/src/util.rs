@@ -16,3 +16,7 @@ pub fn fuzzy_match(haystack: &str, needle: &str) -> bool {
 
     current_needle_char.is_none()
 }
+
+pub fn case_ignored_match(a: &str, b: &str) -> bool {
+    a.to_lowercase() == b.to_lowercase()
+}

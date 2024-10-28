@@ -3,8 +3,11 @@ use std::sync::Arc;
 
 use bevy::{prelude::*, utils::HashMap};
 
+use crate::util;
+
 pub(crate) struct BevyComponentInfo {
     pub(crate) full_path: String,
+    pub(crate) type_ident: Option<String>,
     pub(crate) type_id: TypeId,
 }
 
@@ -43,6 +46,7 @@ impl Clone for DynBevyComponent {
 }
 
 pub(crate) struct RegisteredBevyComponent {
+    pub(crate) from_world: Arc<dyn Fn(&mut World) -> DynBevyComponent>,
     pub(crate) from_reflect: Arc<dyn Fn(&dyn Reflect) -> Result<DynBevyComponent, ()>>,
     pub(crate) extract: Arc<dyn Fn(Entity, &World) -> Option<DynBevyComponent>>,
     pub(crate) insert: Arc<dyn Fn(Entity, &mut World, DynBevyComponent)>,
@@ -57,14 +61,16 @@ pub trait FyfthRegisterBevyComponent {
 impl FyfthRegisterBevyComponent for App {
     fn fyfth_register_bevy_component<T>(&mut self) -> &mut Self
     where
-        T: FyfthCompatibleBevyComponent + Component + Default + Clone,
+        T: FyfthCompatibleBevyComponent + Component + FromWorld + Clone,
     {
         let world = self.world_mut();
+        let temp = T::from_world(world);
         let mut register = world.non_send_resource_mut::<BevyComponentRegistry>();
 
         register.registered_components_map.insert(
             TypeId::of::<T>(),
             RegisteredBevyComponent {
+                from_world: Arc::new(|world| DynBevyComponent(Box::new(T::from_world(world)))),
                 from_reflect: Arc::new(|refl| {
                     if refl.type_id() == TypeId::of::<T>() {
                         Ok(DynBevyComponent(Box::new(
@@ -88,9 +94,9 @@ impl FyfthRegisterBevyComponent for App {
                 }),
             },
         );
-        let temp = T::default();
         register.registered_components.push(BevyComponentInfo {
             full_path: temp.reflect_type_path().to_string(),
+            type_ident: temp.reflect_type_ident().map(|name| name.to_string()),
             type_id: TypeId::of::<T>(),
         });
 
@@ -118,5 +124,66 @@ where
 
     fn shell_clone_self(&self) -> DynBevyComponent {
         DynBevyComponent(Box::new(self.clone()))
+    }
+}
+
+pub(crate) enum BevyComponentRegistryError {
+    NoMatchingComponent,
+    MultipleMatchingComponents(Vec<usize>),
+}
+
+impl BevyComponentRegistry {
+    pub(crate) fn try_find_component_by_name(
+        &self,
+        component_name: &str,
+    ) -> Result<TypeId, BevyComponentRegistryError> {
+        for comp_path in self.registered_components.iter() {
+            println!("Registered Component: {}", comp_path.full_path);
+        }
+
+        let component_name_full_matches: Vec<usize> = self
+            .registered_components
+            .iter()
+            .enumerate()
+            .filter_map(|(index, ci)| {
+                ci.type_ident.as_ref().and_then(|ident| {
+                    util::case_ignored_match(&ident, component_name).then_some(index)
+                })
+            })
+            .collect();
+
+        match component_name_full_matches.len() {
+            // Good! We have exactly one full match! That's our component
+            1 => Ok(self.registered_components[component_name_full_matches[0]].type_id),
+            // There are multiple components whose type ident fully matches the query string.
+            // We cannot infer which the user might have meant. Return an error.
+            2.. => Err(BevyComponentRegistryError::MultipleMatchingComponents(
+                component_name_full_matches,
+            )),
+            // There are no components that match exactly. Try fuzzy matching their entire type paths
+            0 => {
+                let component_name_fuzzy_matches: Vec<usize> = self
+                    .registered_components
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, ci)| {
+                        ci.type_ident.as_ref().and_then(|ident| {
+                            util::fuzzy_match(&ident, component_name).then_some(index)
+                        })
+                    })
+                    .collect();
+
+                match component_name_fuzzy_matches.len() {
+                    // Good! We have exactly one full match! That's our component
+                    1 => Ok(self.registered_components[component_name_fuzzy_matches[0]].type_id),
+                    // There are multiple components whose type ident fully matches the query string.
+                    // We cannot infer which the user might have meant. Return an error.
+                    2.. => Err(BevyComponentRegistryError::MultipleMatchingComponents(
+                        component_name_fuzzy_matches,
+                    )),
+                    0 => Err(BevyComponentRegistryError::NoMatchingComponent),
+                }
+            }
+        }
     }
 }
