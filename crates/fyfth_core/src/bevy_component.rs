@@ -186,4 +186,11 @@ impl BevyComponentRegistry {
             }
         }
     }
+
+    pub(crate) fn get_info(&self, type_id: TypeId) -> Option<&BevyComponentInfo> {
+        self.registered_components
+            .iter()
+            .filter_map(|ci| (ci.type_id == type_id).then_some(ci))
+            .next()
+    }
 }

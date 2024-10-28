@@ -577,25 +577,11 @@ fn fyfth_func_get(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
                 Err(())
             }
         },
-        (&FyfthVariant::Entity(entity), FyfthVariant::Literal(val)) => {
+        (&FyfthVariant::Entity(entity), FyfthVariant::Literal(component_name)) => {
             let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
 
-            let fuzzy_matches: Vec<_> = registry
-                .registered_components
-                .iter()
-                .filter_map(|info| {
-                    if util::fuzzy_match(&info.full_path, &val) {
-                        Some(info)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            match fuzzy_matches.len() {
-                1 => {
-                    let info = fuzzy_matches.first().unwrap();
-                    let component_type_id = info.type_id;
+            match registry.try_find_component_by_name(&component_name) {
+                Ok(component_type_id) => {
                     let maybe_component_dyn = (registry
                         .registered_components_map
                         .get(&component_type_id)
@@ -608,35 +594,42 @@ fn fyfth_func_get(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
                         write!(
                             ctx.output,
                             "Error: entity ({}) does not contain component `{}`",
-                            entity, info.full_path,
+                            entity,
+                            &registry.get_info(component_type_id).unwrap().full_path,
                         )
                         .unwrap();
                         Err(())
                     }
                 }
-                0 => {
-                    write!(
-                        ctx.output,
-                        "Error: could not find component `{}` in registry. Make sure it is registered using `app.register_shell_component::<T>()`.",
-                        &val
-                    )
-                    .unwrap();
-                    Err(())
-                }
-                _ => {
-                    write!(
-                        ctx.output,
-                        "Error: multiple components fit the name '{}'. Specify the name more clearly avoid ambiguity. The matching components are:\n",
-                        &val
-                    )
-                    .unwrap();
-
-                    for &info in fuzzy_matches.iter() {
-                        writeln!(ctx.output, "  {}", &info.full_path).unwrap();
+                Err(error) => match error {
+                    BevyComponentRegistryError::NoMatchingComponent => {
+                        write!(
+                            ctx.output,
+                            "Error: no component type path matches '{component_name}'. Make sure the component is registered using `app.register_shell_component::<T>()`.",
+                        )
+                        .unwrap();
+                        Err(())
                     }
+                    BevyComponentRegistryError::MultipleMatchingComponents(vec) => {
+                        let num = vec.len();
+                        write!(
+                            ctx.output,
+                            "Error: {num} component type paths match '{component_name}':",
+                        )
+                        .unwrap();
 
-                    Err(())
-                }
+                        for index in vec {
+                            writeln!(
+                                ctx.output,
+                                "    {}",
+                                &registry.registered_components[index].full_path,
+                            )
+                            .unwrap();
+                        }
+
+                        Err(())
+                    }
+                },
             }
         }
         (FyfthVariant::Component(dyn_comp), FyfthVariant::Literal(field_name)) => {
@@ -1516,7 +1509,7 @@ fn fyfth_func_component(
                     BevyComponentRegistryError::NoMatchingComponent => {
                         write!(
                             ctx.output,
-                            "Error: no component type path matches '{component_name}'",
+                            "Error: no component type path matches '{component_name}'. Make sure the component is registered using `app.register_shell_component::<T>()`.",
                         )
                         .unwrap();
                         Err(())
