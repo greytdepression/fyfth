@@ -63,7 +63,7 @@ impl RegisteredBevyComponentHandler {
     }
 
     pub(crate) fn from_reflect(&self, reflect: &dyn Reflect) -> Result<DynBevyComponent, ()> {
-        unsafe { (self.func_from_reflect)(std::ptr::from_ref(reflect)) }
+        unsafe { (self.func_from_reflect)(core::ptr::from_ref(reflect)) }
     }
 
     pub(crate) fn extract(&self, entity: Entity, world: &World) -> Option<DynBevyComponent> {
