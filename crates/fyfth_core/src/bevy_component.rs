@@ -181,7 +181,31 @@ impl BevyComponentRegistry {
                     2.. => Err(BevyComponentRegistryError::MultipleMatchingComponents(
                         component_name_fuzzy_matches,
                     )),
-                    0 => Err(BevyComponentRegistryError::NoMatchingComponent),
+                    // We still haven't found anything. Try fuzzy matching the entire type path
+                    0 => {
+                        let component_type_path_fuzzy_matches: Vec<usize> = self
+                            .registered_components
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, ci)| {
+                                util::fuzzy_match(&ci.full_path, component_name).then_some(index)
+                            })
+                            .collect();
+
+                        match component_type_path_fuzzy_matches.len() {
+                            // Good! We have exactly one full match! That's our component
+                            1 => Ok(self.registered_components
+                                [component_type_path_fuzzy_matches[0]]
+                                .type_id),
+                            // There are multiple components whose type ident fully matches the query string.
+                            // We cannot infer which the user might have meant. Return an error.
+                            2.. => Err(BevyComponentRegistryError::MultipleMatchingComponents(
+                                component_type_path_fuzzy_matches,
+                            )),
+                            // Okay, now we really don't have anything.
+                            0 => Err(BevyComponentRegistryError::NoMatchingComponent),
+                        }
+                    }
                 }
             }
         }
