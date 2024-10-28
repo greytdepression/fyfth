@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_component::BevyComponentRegistry;
+use bevy_component::{BevyComponentRegistry, FyfthRegisterBevyComponent};
 use interpreter::FyfthInterpreter;
 
 pub mod bevy_component;
@@ -48,6 +48,12 @@ impl Plugin for FyfthPlugin {
         }
 
         world.insert_resource(interpreter);
+
+        // Create the registry
         world.init_non_send_resource::<BevyComponentRegistry>();
+
+        // Register components
+        app.fyfth_register_bevy_component::<Transform>();
+        app.fyfth_register_bevy_component::<GlobalTransform>();
     }
 }
