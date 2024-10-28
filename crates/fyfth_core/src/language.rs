@@ -578,15 +578,16 @@ fn fyfth_func_get(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
             }
         },
         (&FyfthVariant::Entity(entity), FyfthVariant::Literal(component_name)) => {
-            let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
+            let registry = ctx.world.resource::<BevyComponentRegistry>();
 
             match registry.try_find_component_by_name(&component_name) {
                 Ok(component_type_id) => {
-                    let maybe_component_dyn = (registry
+                    let handler = registry
                         .registered_components_map
                         .get(&component_type_id)
                         .unwrap()
-                        .extract)(entity, ctx.world);
+                        .clone();
+                    let maybe_component_dyn = handler.extract(entity, ctx.world);
 
                     if let Some(component_dyn) = maybe_component_dyn {
                         Ok(Some(FyfthVariant::Component(component_dyn)))
@@ -636,7 +637,7 @@ fn fyfth_func_get(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
             match dyn_comp.0.reflect_ref() {
                 bevy::reflect::ReflectRef::Struct(val) => {
                     if let Some(field) = val.field(&field_name) {
-                        let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
+                        let registry = ctx.world.resource::<BevyComponentRegistry>();
                         if let Some(shell_value) =
                             FyfthVariant::try_reflect_from_type_id(field, registry)
                         {
@@ -706,15 +707,14 @@ fn fyfth_func_add(ctx: FyfthContext, args: &[FyfthVariant]) -> Result<Option<Fyf
             Ok(Some(FyfthVariant::Literal(format!("{lhs}{rhs}"))))
         }
         (&FyfthVariant::Entity(entity), FyfthVariant::Component(dyn_comp)) => {
-            let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
-            let inserter = registry
+            let registry = ctx.world.resource::<BevyComponentRegistry>();
+            let handler = registry
                 .registered_components_map
                 .get(&dyn_comp.0.shell_underlying_component_type_id())
                 .expect("The shell component registry has been corrupted!")
-                .insert
                 .clone();
 
-            (*inserter)(entity, ctx.world, dyn_comp.clone());
+            handler.insert(entity, ctx.world, dyn_comp.clone());
 
             Ok(None)
         }
@@ -1493,16 +1493,17 @@ fn fyfth_func_component(
     match val {
         FyfthVariant::Literal(component_name) => {
             // We need to get the component registry
-            let registry = ctx.world.non_send_resource::<BevyComponentRegistry>();
+            let registry = ctx.world.resource::<BevyComponentRegistry>();
 
             match registry.try_find_component_by_name(&component_name) {
                 Ok(comp_type_id) => {
-                    let registered_component = registry
+                    let handler = registry
                         .registered_components_map
                         .get(&comp_type_id)
-                        .unwrap();
-                    let from_world = registered_component.from_world.clone();
-                    let comp = (&from_world)(ctx.world);
+                        .unwrap()
+                        .clone();
+
+                    let comp = handler.from_world(ctx.world);
                     Ok(Some(FyfthVariant::Component(comp)))
                 }
                 Err(error) => match error {

@@ -683,13 +683,15 @@ impl FyfthVariant {
 
         for info in registry.registered_components.iter() {
             if info.type_id == value.type_id() {
-                let from_reflect_func = &registry
+                let handler = registry
                     .registered_components_map
                     .get(&info.type_id)
                     .unwrap()
-                    .from_reflect;
+                    .clone();
 
-                return Some(FyfthVariant::Component((from_reflect_func)(value).unwrap()));
+                return Some(FyfthVariant::Component(
+                    handler.from_reflect(value).unwrap(),
+                ));
             }
         }
 

@@ -50,7 +50,7 @@ impl Plugin for FyfthPlugin {
         world.insert_resource(interpreter);
 
         // Create the registry
-        world.init_non_send_resource::<BevyComponentRegistry>();
+        world.init_resource::<BevyComponentRegistry>();
 
         // Register components
         app.fyfth_register_bevy_component::<Transform>();
