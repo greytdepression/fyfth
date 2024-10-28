@@ -201,10 +201,6 @@ impl BevyComponentRegistry {
         &self,
         component_name: &str,
     ) -> Result<TypeId, BevyComponentRegistryError> {
-        for comp_path in self.registered_components.iter() {
-            println!("Registered Component: {}", comp_path.full_path);
-        }
-
         let component_name_full_matches: Vec<usize> = self
             .registered_components
             .iter()

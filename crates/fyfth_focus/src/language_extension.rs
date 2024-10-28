@@ -13,7 +13,6 @@ pub(crate) fn fyfth_func_focus(
     match val {
         &FyfthVariant::Entity(entity) => {
             if let Some(mut entity) = ctx.world.get_entity_mut(entity) {
-                println!("inserting focus component into {}", entity.id());
                 entity.insert(crate::FyfthFocusObject);
                 Ok(None)
             } else {
